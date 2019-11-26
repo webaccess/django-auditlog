@@ -7,7 +7,7 @@ from django.conf import settings
 from django.contrib.contenttypes.fields import GenericRelation
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import FieldDoesNotExist
-from django.db import models, DEFAULT_DB_ALIAS
+from django.db import models
 from django.db.models import QuerySet, Q
 from django.utils import formats, timezone
 from django.utils.encoding import python_2_unicode_compatible, smart_text
@@ -164,18 +164,22 @@ class LogEntry(models.Model):
         CREATE = 0
         UPDATE = 1
         DELETE = 2
+        DOWNLOAD = 3
+        KLC = 4
 
         choices = (
-            (CREATE, _("create")),
-            (UPDATE, _("update")),
-            (DELETE, _("delete")),
+            (CREATE, _("Create")),
+            (UPDATE, _("Update")),
+            (DELETE, _("Delete")),
+            (DOWNLOAD,_("Download")),
+            (KLC,_("KLC"))
         )
 
-    content_type = models.ForeignKey(to='contenttypes.ContentType', on_delete=models.CASCADE, related_name='+', verbose_name=_("content type"))
+    content_type = models.ForeignKey(to='contenttypes.ContentType', on_delete=models.CASCADE,related_name='+', verbose_name=_("content type"))    
     object_pk = models.CharField(db_index=True, max_length=255, verbose_name=_("object pk"))
     object_id = models.BigIntegerField(blank=True, db_index=True, null=True, verbose_name=_("object id"))
-    object_repr = models.TextField(verbose_name=_("object representation"))
-    action = models.PositiveSmallIntegerField(choices=Action.choices, verbose_name=_("action"))
+    object_repr = models.TextField(verbose_name=_("Entity name"))
+    action = models.PositiveSmallIntegerField(choices=Action.choices, verbose_name=_("Operation"))
     changes = models.TextField(blank=True, verbose_name=_("change message"))
     actor = models.ForeignKey(to=settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, blank=True, null=True, related_name='+', verbose_name=_("actor"))
     remote_addr = models.GenericIPAddressField(blank=True, null=True, verbose_name=_("remote address"))
@@ -197,6 +201,10 @@ class LogEntry(models.Model):
             fstring = _("Updated {repr:s}")
         elif self.action == self.Action.DELETE:
             fstring = _("Deleted {repr:s}")
+        elif self.action == self.Action.DOWNLOAD:
+            fstring = _("Downloaded {repr:s}")
+        elif self.action == self.Action.KLC:
+            fstring = _("Kaseya Live Connect {repr:s}")
         else:
             fstring = _("Logged {repr:s}")
 
@@ -321,13 +329,9 @@ class AuditlogHistoryField(GenericRelation):
 
     :param pk_indexable: Whether the primary key for this model is not an :py:class:`int` or :py:class:`long`.
     :type pk_indexable: bool
-    :param delete_related: By default, including a generic relation into a model will cause all related objects to be
-        cascade-deleted when the parent object is deleted. Passing False to this overrides this behavior, retaining
-        the full auditlog history for the object. Defaults to True, because that's Django's default behavior.
-    :type delete_related: bool
     """
 
-    def __init__(self, pk_indexable=True, delete_related=True, **kwargs):
+    def __init__(self, pk_indexable=True, **kwargs):
         kwargs['to'] = LogEntry
 
         if pk_indexable:
@@ -336,21 +340,7 @@ class AuditlogHistoryField(GenericRelation):
             kwargs['object_id_field'] = 'object_pk'
 
         kwargs['content_type_field'] = 'content_type'
-        self.delete_related = delete_related
         super(AuditlogHistoryField, self).__init__(**kwargs)
-
-    def bulk_related_objects(self, objs, using=DEFAULT_DB_ALIAS):
-        """
-        Return all objects related to ``objs`` via this ``GenericRelation``.
-        """
-        if self.delete_related:
-            return super(AuditlogHistoryField, self).bulk_related_objects(objs, using)
-
-        # When deleting, Collector.collect() finds related objects using this
-        # method.  However, because we don't want to delete these related
-        # objects, we simply return an empty list.
-        return []
-
 
 # South compatibility for AuditlogHistoryField
 try:
