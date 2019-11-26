@@ -31,7 +31,6 @@ class MiddlewareMixinclass(MiddlewareMixin):
 
 class LogEntryAdminMixin(object):
     def created(self, obj):
-        print("------------Inside created()----------")
         return obj.timestamp.strftime('%b. %d, %Y, %I:%M %p') #Displays date in diff format
     created.short_description = 'Date'
 
