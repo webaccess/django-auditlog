@@ -7,10 +7,8 @@ from .middleware import AuditlogMiddleware
 
 
 class LogEntryAdmin(admin.ModelAdmin, LogEntryAdminMixin,MiddlewareMixinclass):
-    # list_display = ['created', 'resource_url', 'action', 'msg_short', 'user_url']
     list_display = ['created','user_url','action','entity_type','object_repr','msg_short','remote_addr']
     search_fields = ['changes','remote_addr','object_repr']
-    # list_filter = ['action', ResourceTypeFilter]
     list_filter = ['action',ResourceTypeFilter,'timestamp']
     readonly_fields = ['created', 'resource_url', 'action', 'user_url', 'msg']
     fieldsets = [
@@ -20,8 +18,5 @@ class LogEntryAdmin(admin.ModelAdmin, LogEntryAdminMixin,MiddlewareMixinclass):
 
     def has_add_permission(self, request):   # remove "add" permission
         return False
-    
-    # def has_delete_permission(self, request, obj=None):
-    #     return False
 
 admin.site.register(LogEntry, LogEntryAdmin)
