@@ -73,17 +73,12 @@ class LogEntryAdminMixin(object):
             return obj.object_repr
         else:
             obj_store = str(obj.object_repr)
-            # print("type(obj_store-----",type(obj_store))
-            # if (obj_store.isnumeric()):
-            #     print("It is numeric-----")
             return (obj.object_repr)
     resource_url.allow_tags = True
     resource_url.short_description = 'Entity name'
 
     def msg_short(self, obj):
         if obj.action == 2:
-            # if obj.content_type_id == 108:
-            #     return obj.changes
             return 'Deleted object'  # delete
         if obj.action == 3 or obj.action == 4 or obj.action == 1 and obj.content_type_id == 108 and obj.additional_data == "Client_name":     #to display changes for actions of download-3,KLC-4
             return obj.changes                                                                       #and also when update action-1 is done for client name in Client Group
