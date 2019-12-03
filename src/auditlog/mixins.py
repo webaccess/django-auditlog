@@ -1,6 +1,12 @@
 import json
-
+from django.utils.html import mark_safe
+import datetime
 from django.conf import settings
+from .middleware import AuditlogMiddleware
+import threading
+import time
+
+
 try:
     from django.core import urlresolvers
 except ImportError:
@@ -9,17 +15,36 @@ try:
     from django.urls.exceptions import NoReverseMatch
 except ImportError:
     from django.core.urlresolvers import NoReverseMatch
-from django.utils.html import format_html
-from django.utils.safestring import mark_safe
+try:
+    from django.utils.deprecation import MiddlewareMixin
+except ImportError:
+    MiddlewareMixin = object
 
 MAX = 75
 
+threadlocal = threading.local()
+
+class MiddlewareMixinclass(MiddlewareMixin):
+    def disp_remote_addr(self,obj):
+        return obj.remote_addr
+    disp_remote_addr.short_description = "IP Address"
 
 class LogEntryAdminMixin(object):
-
     def created(self, obj):
-        return obj.timestamp.strftime('%Y-%m-%d %H:%M:%S')
-    created.short_description = 'Created'
+        return obj.timestamp.strftime('%b. %d, %Y, %I:%M %p') #Displays date in diff format
+    created.short_description = 'Date'
+
+    def entity_type(self,obj):
+        #entity type for KLC objects
+        if obj.content_type_id == 0:
+            return "N/A"
+        if obj.content_type_id == 8 or obj.content_type_id == 9:   #Displays client for all models inside it
+            return "client"
+        if obj.content_type_id == 90 or obj.content_type_id == 10:    #Displays user for all models inside it
+            return "user"
+        
+        return obj.content_type.model
+    entity_type.short_description = "Entity type"
 
     def user_url(self, obj):
         if obj.actor:
@@ -28,10 +53,10 @@ class LogEntryAdminMixin(object):
             try:
                 link = urlresolvers.reverse(viewname, args=[obj.actor.id])
             except NoReverseMatch:
-                return u'%s' % (obj.actor)
-            return format_html(u'<a href="{}">{}</a>', link, obj.actor)
-
-        return 'system'
+                return (obj.actor)
+            return ( obj.actor)
+        return (obj.object_repr)  #Previously returned system ,now changed to return object_repr(username) to display username in last_login entries
+    user_url.allow_tags = True      #Returns user whose last_login is changed which is the username itself.
     user_url.short_description = 'User'
 
     def resource_url(self, obj):
@@ -41,14 +66,22 @@ class LogEntryAdminMixin(object):
             args = [obj.object_pk] if obj.object_id is None else [obj.object_id]
             link = urlresolvers.reverse(viewname, args=args)
         except NoReverseMatch:
+            obj_store = obj.object_repr
+            print('obj_store---- in alice test----',obj_store)
+            print("type(obj_store-----1st in alice test----",type(obj_store))
+            print(obj_store.isnumeric())
             return obj.object_repr
         else:
-            return format_html(u'<a href="{}">{}</a>', link, obj.object_repr)
-    resource_url.short_description = 'Resource'
+            obj_store = str(obj.object_repr)
+            return (obj.object_repr)
+    resource_url.allow_tags = True
+    resource_url.short_description = 'Entity name'
 
     def msg_short(self, obj):
         if obj.action == 2:
-            return ''  # delete
+            return 'Deleted object'  # delete
+        if obj.action == 3 or obj.action == 4 or obj.action == 1 and obj.content_type_id == 108 and obj.additional_data == "Client_name":     #to display changes for actions of download-3,KLC-4
+            return obj.changes                                                                       #and also when update action-1 is done for client name in Client Group
         changes = json.loads(obj.changes)
         s = '' if len(changes) == 1 else 's'
         fields = ', '.join(changes.keys())
@@ -56,17 +89,27 @@ class LogEntryAdminMixin(object):
             i = fields.rfind(' ', 0, MAX)
             fields = fields[:i] + ' ..'
         return '%d change%s: %s' % (len(changes), s, fields)
-    msg_short.short_description = 'Changes'
+    msg_short.short_description = 'Description'
 
     def msg(self, obj):
         if obj.action == 2:
             return ''  # delete
         changes = json.loads(obj.changes)
-        msg = '<table><tr><th>#</th><th>Field</th><th>From</th><th>To</th></tr>'
+        msg = '<table><tr><th>No.</th><th>Field</th><th>From</th><th>To</th></tr>'
         for i, field in enumerate(sorted(changes), 1):
-            value = [i, field] + (['***', '***'] if field == 'password' else changes[field])
-            msg += format_html('<tr><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>', *value)
-
+            value = [i, field] + (['***', '***'] if field == 'password' or field == 'kaseya_password' or field == 'webroot_password' or field == 'db_password' or field == 'nlm_server_password' else changes[field]) #to display values of password fields as **** 
+            #changes for last_login field in logging entries
+            if field == 'last_login':
+                    for i in range(len(changes[field])):    #iterating list
+                        ologin_date = changes[field][0]     #storing value at index 0 as old login date
+                        ologin_date = datetime.datetime.strptime(ologin_date, '%Y-%m-%d %H:%M:%S.%f')   #converting string into datetime obj
+                        ologin_date = ologin_date.strftime("%m/%d/%Y %I:%M %p")        #converting date into string type
+                        nlogin_date = changes[field][1]     #storing value at index 1 as new login date
+                        nlogin_date = datetime.datetime.strptime(nlogin_date, '%Y-%m-%d %H:%M:%S.%f')      #converting string into datetime obj
+                        nlogin_date = nlogin_date.strftime("%m/%d/%Y %I:%M %p")         #converting date into string type
+                        value = [i,field] + [ologin_date,nlogin_date]
+            msg += '<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>' % tuple(value)
         msg += '</table>'
-        return mark_safe(msg)
+        return mark_safe(msg)       #mark_safe is used to return html code in Python
+    msg.allow_tags = True
     msg.short_description = 'Changes'
