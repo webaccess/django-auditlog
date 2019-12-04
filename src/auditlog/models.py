@@ -172,7 +172,7 @@ class LogEntry(models.Model):
             (UPDATE, _("Update")),
             (DELETE, _("Delete")),
             (DOWNLOAD,_("Download")),
-            (KLC,_("KLC"))
+            (KLC,_("Remote Control"))
         )
 
     content_type = models.ForeignKey(to='contenttypes.ContentType', on_delete=models.CASCADE,related_name='+', verbose_name=_("content type"))    
