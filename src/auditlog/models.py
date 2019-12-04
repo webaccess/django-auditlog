@@ -111,6 +111,7 @@ class LogEntryManager(models.Manager):
         Get log entries for all objects of a specified type.
 
         :param model: The model to get log entries for.
+        
         :type model: class
         :return: QuerySet of log entries for the given model.
         :rtype: QuerySet
@@ -165,14 +166,14 @@ class LogEntry(models.Model):
         UPDATE = 1
         DELETE = 2
         DOWNLOAD = 3
-        KLC = 4
+        REMOTECONTROL = 4
 
         choices = (
             (CREATE, _("Create")),
             (UPDATE, _("Update")),
             (DELETE, _("Delete")),
             (DOWNLOAD,_("Download")),
-            (KLC,_("KLC"))
+            ( REMOTECONTROL,_("Remote Control"))
         )
 
     content_type = models.ForeignKey(to='contenttypes.ContentType', on_delete=models.CASCADE,related_name='+', verbose_name=_("content type"))    
@@ -204,7 +205,7 @@ class LogEntry(models.Model):
         elif self.action == self.Action.DOWNLOAD:
             fstring = _("Downloaded {repr:s}")
         elif self.action == self.Action.KLC:
-            fstring = _("Kaseya Live Connect {repr:s}")
+            fstring = _("Remote Control with {repr:s} mode")
         else:
             fstring = _("Logged {repr:s}")
 
