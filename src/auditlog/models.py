@@ -204,7 +204,7 @@ class LogEntry(models.Model):
             fstring = _("Deleted {repr:s}")
         elif self.action == self.Action.DOWNLOAD:
             fstring = _("Downloaded {repr:s}")
-        elif self.action == self.Action.KLC:
+        elif self.action == self.Action.REMOTECONTROL:
             fstring = _("Remote Control with {repr:s} mode")
         else:
             fstring = _("Logged {repr:s}")
