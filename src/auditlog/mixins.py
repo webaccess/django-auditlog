@@ -5,6 +5,9 @@ from django.conf import settings
 from .middleware import AuditlogMiddleware
 import threading
 import time
+import requests
+from auditlog.models import LogEntry
+import pytz
 
 
 try:
@@ -31,7 +34,7 @@ class MiddlewareMixinclass(MiddlewareMixin):
 
 class LogEntryAdminMixin(object):
 
-    #GOIP API used to get user location details.
+    #GEOIP API used to get user location details.
     headers = {
         'accept': "application/json",
         'content-type': "application/json"
@@ -48,7 +51,7 @@ class LogEntryAdminMixin(object):
             system_tz = pytz.timezone('UTC')
             local_tz = pytz.timezone(LogEntryAdminMixin.tz_from_response)       #local tz set as timezone from response
             local_ts = system_tz.localize(new_ts).astimezone(local_tz)      #returns datetime in the local timezone
-        return obj.timestamp.strftime('%b. %d, %Y, %I:%M %p') #Displays date in diff format
+        return local_ts.strftime('%m/%d/%Y %I:%M %p') #Displays date in diff format
     created.short_description = 'Date'
 
     def entity_type(self,obj):
