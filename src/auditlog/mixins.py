@@ -34,23 +34,9 @@ class MiddlewareMixinclass(MiddlewareMixin):
 
 class LogEntryAdminMixin(object):
 
-    #GEOIP API used to get user location details.
-    headers = {
-        'accept': "application/json",
-        'content-type': "application/json"
-        }
-    response = requests.request("GET", settings.AUDITLOG_GOIP_API, headers=headers)
-    response_dict = json.loads(response.text)       #converting response to dictionary
-    tz_from_response = response_dict["time_zone"]
-
     def created(self, obj):
         new_ts = obj.timestamp.strftime("%m/%d/%Y %I:%M %p")
-        new_ts = obj.timestamp.strptime(new_ts,"%m/%d/%Y %I:%M %p")
-        system_tz = pytz.timezone(settings.TIME_ZONE)
-        local_tz = pytz.timezone(LogEntryAdminMixin.tz_from_response)       #local tz set as timezone from response
-        local_ts = system_tz.localize(new_ts).astimezone(local_tz)      #returns datetime in the local timezone
-        local_ts = local_ts.strftime("%m/%d/%Y %I:%M %p")
-        return local_ts
+        return (new_ts +" ET")
     created.short_description = 'Date'
 
     def entity_type(self,obj):
@@ -116,18 +102,15 @@ class LogEntryAdminMixin(object):
             value = [i, field] + (['***', '***'] if field == 'password' or field == 'kaseya_password' or field == 'webroot_password' or field == 'db_password' or field == 'nlm_server_password' else changes[field]) #to display values of password fields as **** 
             #changes for last_login field in logging entries
             if field == 'last_login':
-                    for i in range(len(changes[field])):    #iterating list
-                        system_tz = pytz.timezone(settings.TIME_ZONE)
-                        local_tz = pytz.timezone(LogEntryAdminMixin.tz_from_response)       #local tz set as timezone from response
-                        ologin_date = changes[field][0]     #storing value at index 0 as old login date
-                        ologin_date = datetime.datetime.strptime(ologin_date, "%Y-%m-%d %H:%M:%S.%f")       #from str to dt obj
-                        local_ologin_date = system_tz.localize(ologin_date).astimezone(local_tz)      #returns datetime in the local timezone
-                        local_ologin_date = local_ologin_date.strftime("%m/%d/%Y %I:%M %p")     #converting date into string type
-                        nlogin_date = changes[field][1]     #storing value at index 0 as old login date
-                        nlogin_date = datetime.datetime.strptime(nlogin_date, "%Y-%m-%d %H:%M:%S.%f")       #from str to dt obj
-                        local_nlogin_date = system_tz.localize(nlogin_date).astimezone(local_tz)      #returns datetime in the local timezone
-                        local_nlogin_date = local_nlogin_date.strftime("%m/%d/%Y %I:%M %p")    #converting date into string type          
-                        value = [i,field] + [local_ologin_date,local_nlogin_date]
+                for i in changes[field]:
+                    for i in range(len(changes[field])): 
+                        ologin_date = changes[field][0]
+                        ologin_date = datetime.datetime.strptime(ologin_date, '%Y-%m-%d %H:%M:%S.%f')
+                        ologin_date = ologin_date.strftime("%m/%d/%Y %I:%M %p")
+                        nlogin_date = changes[field][1]
+                        nlogin_date = datetime.datetime.strptime(nlogin_date, '%Y-%m-%d %H:%M:%S.%f')
+                        nlogin_date = nlogin_date.strftime("%m/%d/%Y %I:%M %p")
+                        value = [i,field] + [ologin_date + " ET ",nlogin_date + " ET"]
             msg += '<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>' % tuple(value)
         msg += '</table>'
         return mark_safe(msg)       #mark_safe is used to return html code in Python
