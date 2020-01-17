@@ -85,10 +85,10 @@ class LogEntryAdminMixin(object):
     resource_url.short_description = 'Entity name'
 
     def msg_short(self, obj):
+        if obj.action == 3 or obj.action == 4 or obj.action == 0 and obj.content_type_id == 108 and obj.additional_data == "Client_name" or obj.action == 2 and obj.additional_data == "Client_name":     #to display changes for actions of download-3,KLC-4
+            return obj.changes                                                                 #and also when create action-0 is done for client name in Client Group
         if obj.action == 2:
             return 'Deleted object'  # delete
-        if obj.action == 3 or obj.action == 4 or obj.action == 1 and obj.content_type_id == 108 and obj.additional_data == "Client_name":     #to display changes for actions of download-3,KLC-4
-            return obj.changes                                                                       #and also when update action-1 is done for client name in Client Group
         changes = json.loads(obj.changes)
         s = '' if len(changes) == 1 else 's'
         fields = ', '.join(changes.keys())
